@@ -1,7 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
-// const mysql = require('mysql2/promise');
+const path = require('path');
 require('dotenv').config();
 
 const app = express();
@@ -27,10 +27,12 @@ mongoose.connect(process.env.MONGODB_URI)
 //     connectionLimit: 10,
 //     queueLimit: 0
 // });
+app.use('/products', express.static(path.join(__dirname, 'uploads/products')));
 
 // Make db connections available in req
 app.use((req, res, next) => {
     // req.mysqlDb = pool;
+    console.log(`Request URL: ${req.url} - ${req.method}`);
     next();
 });
 

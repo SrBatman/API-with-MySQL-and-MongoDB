@@ -6,13 +6,16 @@ const {
     create, 
     getById, 
     updateById, 
-    deleteById 
+    deleteById,
+    getEditInfo 
 } = require('../controllers/products');
 const authenticateToken = require('../middlewares/auth');
 
 
 
 router.get('/', authenticateToken, getAll);
+
+router.get('/getEditInfo/:id', authenticateToken, getEditInfo);
 
 
 router.get('/:id', authenticateToken, getById);

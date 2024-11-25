@@ -24,7 +24,9 @@ const Category = sequelize.define(
     },
     {
         tableName: 'categories', // Nombre exacto de la tabla
-        timestamps: true, // Activa manejo de `createdAt` y `updatedAt`
+        timestamps: true, 
+        createdAt: 'created_at',
+        updatedAt: 'updated_at',
     }
 );
 

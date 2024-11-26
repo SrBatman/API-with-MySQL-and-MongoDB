@@ -7,7 +7,9 @@ const {
     getById, 
     updateById, 
     deleteById,
-    getEditInfo 
+    getEditInfo,
+    getProductByFilter,
+    getBySlug 
 } = require('../controllers/products');
 const authenticateToken = require('../middlewares/auth');
 
@@ -16,6 +18,11 @@ const authenticateToken = require('../middlewares/auth');
 router.get('/', authenticateToken, getAll);
 
 router.get('/getEditInfo/:id', authenticateToken, getEditInfo);
+
+router.get('/getBySlug/:id', authenticateToken, getBySlug);
+
+
+router.get('/getProductByFilter/', authenticateToken, getProductByFilter);
 
 
 router.get('/:id', authenticateToken, getById);

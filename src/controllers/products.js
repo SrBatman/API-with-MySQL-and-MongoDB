@@ -1,10 +1,10 @@
-const { Categories } = require('../tables/categories');
-const { Subcategories } = require('../tables/subcategories');
+const { Categories, Subcategories } = require('../tables/categories');
 const { Brands } = require('../tables/brands');
 const { Logs } = require('../models/log');
 const { Product } = require('../models/producto');
 const path = require('path');
 const multer = require('multer');
+const fs = require('fs');
 
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
@@ -106,6 +106,16 @@ exports.getById = async (req, res) => {
     }
 };
 
+exports.getBySlug = async (req, res) => {
+    try {
+        const producto = await Product.findOne({ slug: req.params.id });
+        if (!producto) return res.status(404).json({ message: 'Producto no encontrado' });
+        res.json(producto);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
 // Read a product by ID
 exports.getEditInfo = async (req, res) => {
   
@@ -185,7 +195,7 @@ exports.updateById = async (req, res) => {
             }
 
             // Actualizar el producto en la base de datos
-            console.log('requestData:', requestData);
+            // console.log('requestData:', requestData);
             const updatedProduct = await Product.findByIdAndUpdate(req.params.id, requestData, { new: true });
             if (!updatedProduct) return res.status(404).json({ message: 'Producto no encontrado' });
 
@@ -225,6 +235,149 @@ exports.deleteById = async (req, res) => {
     }
 };
 
+exports.getProductByFilter = async (req, res) => {
+    try {
+        const {
+            search,
+            category,
+            subcategory,
+            min_price,
+            max_price,
+            sort,
+            page = 1,
+        } = req.query;
+
+        const limit = 16; // Elementos por página
+        const skip = (page - 1) * limit;
+
+        // Consultar categorías y subcategorías que coincidan con los filtros de categoría y subcategoría
+        let categoryFilter = {};
+        let subcategoryFilter = {};
+        
+        if (category) {
+            categoryFilter = { id: category };
+        }
+        
+        if (subcategory) {
+            subcategoryFilter = { id: subcategory };
+        }
+
+        // Filtrar categorías y subcategorías activas usando Sequelize
+        const categories = await Categories.findAll({
+            where: categoryFilter,
+            attributes: ['id', 'name', 'status'],
+        });
+
+        const allCat = await Categories.findAll({
+            include: [
+                {
+                    model: Subcategories, // Relación definida previamente
+                    as: 'subcategories', // Alias definido en la relación (puedes ajustar según tu código)
+                    attributes: ['id', 'name', 'description', 'status'], // Campos específicos de las subcategorías
+                },
+            ],
+            attributes: ['id', 'name', 'description', 'status'], // Campos específicos de las categorías
+        });
+
+
+        const subcategories = await Subcategories.findAll({
+            where: {
+                ...subcategoryFilter,
+                status: true,  // Solo subcategorías activas
+            },
+            include: {
+                model: Categories,
+                as: 'category',  // Usar el alias 'category' que definimos en la relación
+                where: { status: true },  // Solo categorías activas
+                attributes: ['id'],  // Solo queremos el id de la categoría asociada
+            },
+            attributes: ['id', 'name', 'category_id'],
+        });
+
+
+        // Obtener los ids de categorías y subcategorías activas
+        const activeCategoryIds = categories.map(cat => cat.id);
+        const activeSubcategoryIds = subcategories.map(sub => sub.id);
+
+        // Construir el pipeline de agregación para productos en MongoDB (Mongoose)
+        const pipeline = [
+            { $match: { status: 0 } }, // Solo productos activos
+        ];
+
+        // Filtro de búsqueda por nombre
+        if (search) {
+            pipeline.push({
+                $match: { name: { $regex: new RegExp(search, 'i') } },
+            });
+        }
+
+        // Filtrar productos por categoría o subcategoría
+        if (activeCategoryIds.length > 0) {
+            pipeline.push({
+                $match: { category_id: { $in: activeCategoryIds } },
+            });
+        }
+
+        if (activeSubcategoryIds.length > 0) {
+            pipeline.push({
+                $match: { subcategory_id: { $in: activeSubcategoryIds } },
+            });
+        }
+
+        // Filtrar por rango de precio
+        if (min_price || max_price) {
+            pipeline.push({
+                $match: {
+                    price: {
+                        ...(min_price && { $gte: parseFloat(min_price) }),
+                        ...(max_price && { $lte: parseFloat(max_price) }),
+                    },
+                },
+            });
+        }
+
+        // Ordenar resultados
+        const sortOptions = {};
+        switch (sort) {
+            case 'price_asc':
+                sortOptions.price = 1;
+                break;
+            case 'price_desc':
+                sortOptions.price = -1;
+                break;
+            case 'date_newest':
+                sortOptions.createdAt = -1;
+                break;
+            case 'date_oldest':
+                sortOptions.createdAt = 1;
+                break;
+            default:
+                sortOptions.createdAt = -1; // Orden por defecto
+        }
+        pipeline.push({ $sort: sortOptions });
+
+        // Paginación
+        pipeline.push({ $skip: skip }, { $limit: limit });
+
+        // Consultar productos y total para paginación
+        const [products, totalProducts] = await Promise.all([
+            Product.aggregate(pipeline),
+            Product.countDocuments({ status: 0 }),
+        ]);
+
+        // Respuesta
+        res.json({
+            productsList: products,
+            totalProducts,
+            currentPage: page,
+            allCat,
+            totalPages: Math.ceil(totalProducts / limit),
+        });
+    } catch (error) {
+        console.error('Error al obtener productos:', error);
+        res.status(500).json({ error: 'Error interno del servidor' });
+    }
+};
 
 function generateSlug(name, brand) {
     return name

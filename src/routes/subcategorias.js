@@ -2,8 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { Product } = require('../models/producto');
 const { decryptData, encryptData } = require('../utils/crypto');
-const { Categories } = require('../tables/categories');
-const { Subcategories } = require('../tables/subcategories');
+const { Categories, Subcategories } = require('../tables/categories');
 
 router.post('/', async (req, res) => {
     try {

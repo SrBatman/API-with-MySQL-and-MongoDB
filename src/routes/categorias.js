@@ -5,7 +5,7 @@ const Categoria = require('../models/categoria');
 // Create
 router.post('/', async (req, res) => {
     try {
-        console.log('Datos recibidos:', req.body);
+        
         const categoria = new Categoria(req.body);
         await categoria.save();
         res.status(201).json(categoria);

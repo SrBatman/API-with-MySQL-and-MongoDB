@@ -40,11 +40,12 @@ app.use((req, res, next) => {
 app.use('/api/products', require('./routes/productos'));
 app.use('/api/logs', require('./routes/logs'));
 app.use('/api/login', require('./routes/login'));
+app.use('/api/components', require('./routes/components'));
 app.use('/api/brands', require('./routes/brands'));
 app.use('/api/clientes', require('./routes/clientes'));
 app.use('/api/empleados', require('./routes/empleados'));
 app.use('/api/contactos', require('./routes/contactos'));
-app.use('/api/ordenes', require('./routes/ordenes'));
+app.use('/api/orders', require('./routes/ordenes'));
 app.use('/api/pagos', require('./routes/pagos'));
 app.use('/api/usuarios', require('./routes/usuarios'));
 app.use('/api/categorias', require('./routes/categorias'));
